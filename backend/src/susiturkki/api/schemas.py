@@ -17,6 +17,11 @@ class NameBody(BaseModel):
     name: str
 
 
+class MemberBody(BaseModel):
+    name: str | None = None
+    person_id: int | None = None
+
+
 class EntryBody(BaseModel):
     performed_at: datetime
     distance_km: Annotated[Decimal, BeforeValidator(_kilometers)]

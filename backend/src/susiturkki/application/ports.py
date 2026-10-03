@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
-from susiturkki.domain.models import Entry, Group, Participant
+from susiturkki.domain.models import Entry, Group, Participant, Person
 
 
 class Clock(Protocol):
@@ -11,7 +11,7 @@ class Clock(Protocol):
 
 
 class SkiRepository(Protocol):
-    """Vaihdettava tallennusrajapinta ryhmille, osallistujille ja kirjauksille."""
+    """Vaihdettava tallennus. Kirjaus kuuluu henkilölle ja näkyy hänen jokaisessa ryhmässään."""
 
     def add_group(self, name: str) -> Group: ...
 
@@ -29,6 +29,14 @@ class SkiRepository(Protocol):
 
     def add_participant(self, group_id: int, name: str, token: str) -> Participant: ...
 
+    def add_membership(self, group_id: int, person_id: int) -> Participant: ...
+
+    def list_persons(self) -> list[Person]: ...
+
+    def get_person_by_token(self, token: str) -> Person | None: ...
+
+    def list_memberships(self, person_id: int) -> list[Participant]: ...
+
     def rename_participant(self, participant_id: int, name: str) -> Participant: ...
 
     def delete_participant(self, participant_id: int) -> None: ...
@@ -37,13 +45,11 @@ class SkiRepository(Protocol):
 
     def get_participant(self, participant_id: int) -> Participant | None: ...
 
-    def get_participant_by_token(self, token: str) -> Participant | None: ...
-
     def replace_token(self, participant_id: int, token: str) -> Participant: ...
 
     def add_entry(
         self,
-        participant_id: int,
+        person_id: int,
         performed_at: datetime,
         distance_tenths: int,
         place: str | None,
@@ -62,6 +68,6 @@ class SkiRepository(Protocol):
 
     def get_entry(self, entry_id: int) -> Entry | None: ...
 
-    def list_entries_for_participant(self, participant_id: int) -> list[Entry]: ...
+    def list_entries_for_person(self, person_id: int) -> list[Entry]: ...
 
     def list_entries_for_group(self, group_id: int) -> list[Entry]: ...

@@ -2,13 +2,28 @@ import secrets
 
 from susiturkki.application.access import require_group, require_participant
 from susiturkki.application.ports import SkiRepository
-from susiturkki.domain.models import Participant
+from susiturkki.domain.models import Participant, Person
 from susiturkki.domain.place import require_name
 
 
 def add_participant(repository: SkiRepository, group_id: int, name: str) -> Participant:
     require_group(repository, group_id)
     return repository.add_participant(group_id, require_name(name), new_link_token())
+
+
+def join_group(repository: SkiRepository, group_id: int, person_id: int) -> Participant:
+    require_group(repository, group_id)
+    return repository.add_membership(group_id, person_id)
+
+
+def enroll(repository: SkiRepository, group_id: int, name: str | None, person_id: int | None) -> Participant:
+    if person_id is not None:
+        return join_group(repository, group_id, person_id)
+    return add_participant(repository, group_id, name or "")
+
+
+def list_persons(repository: SkiRepository) -> list[Person]:
+    return repository.list_persons()
 
 
 def rename_participant(repository: SkiRepository, participant_id: int, name: str) -> Participant:

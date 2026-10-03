@@ -2,7 +2,7 @@ from susiturkki.application.entries import OwnEntry
 from susiturkki.application.groups import GroupDetails
 from susiturkki.application.home import ParticipantHome
 from susiturkki.domain.distance import kilometers_from_tenths
-from susiturkki.domain.models import Entry, Group, Participant
+from susiturkki.domain.models import Entry, Group, Participant, Person
 from susiturkki.domain.stats import MemberKilometers, MemberRecent, PeriodStats, RecentSki, SeasonStats
 from susiturkki.domain.time import in_helsinki
 
@@ -20,7 +20,17 @@ def group_json(details: GroupDetails) -> dict:
 
 
 def participant_json(person: Participant) -> dict:
-    return {"id": person.id, "group_id": person.group_id, "name": person.name, "token": person.token}
+    return {
+        "id": person.id,
+        "group_id": person.group_id,
+        "person_id": person.person_id,
+        "name": person.name,
+        "token": person.token,
+    }
+
+
+def person_json(person: Person) -> dict:
+    return {"id": person.id, "name": person.name, "token": person.token}
 
 
 def home_json(home: ParticipantHome) -> dict:
@@ -69,11 +79,16 @@ def recent_json(members: tuple[MemberRecent, ...]) -> list[dict]:
 
 def _identity_json(home: ParticipantHome) -> dict:
     return {
-        "group_id": home.group.id,
-        "group_name": home.group.name,
-        "participant_id": home.participant.id,
-        "name": home.participant.name,
+        "group_id": home.groups[0].id,
+        "group_name": _group_names(home.groups),
+        "groups": [named_json(group) for group in home.groups],
+        "participant_id": home.person.id,
+        "name": home.person.name,
     }
+
+
+def _group_names(groups: tuple[Group, ...]) -> str:
+    return ", ".join(group.name for group in groups)
 
 
 def _logging_json(home: ParticipantHome) -> dict:

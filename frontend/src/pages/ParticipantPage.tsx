@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 import { useParams } from "react-router-dom"
 import { createEntry, readEntries, readHome, readStats } from "../api/participant"
-import type { Entry, EntryBody, Home } from "../api/types"
+import type { Entry, EntryBody, Home, Named } from "../api/types"
 import { EntryForm } from "../components/EntryForm"
 import { Shell } from "../components/Shell"
 import { StatsBoard } from "../components/StatsBoard"
@@ -18,9 +18,9 @@ type ParticipantBodyProps = {
   token: string
   home: Home
   formKey: number
+  revision: number
   refresh: () => void
   entries: LoadState<Entry[]>
-  stats: ReturnType<typeof useStats>
 }
 
 export function ParticipantPage() {
@@ -33,10 +33,10 @@ export function ParticipantPage() {
 
 function ParticipantView({ token, home, reloadHome }: { token: string; home: Home; reloadHome: () => void }) {
   const entries = useEntries(token)
-  const stats = useStats(token)
   const [formKey, setFormKey] = useState(0)
-  const refresh = () => refreshAll(entries.reload, reloadHome, stats.reload, setFormKey)
-  return <ParticipantBody token={token} home={home} formKey={formKey} refresh={refresh} entries={entries.state} stats={stats} />
+  const [revision, setRevision] = useState(0)
+  const refresh = () => refreshAll(entries.reload, reloadHome, setFormKey, setRevision)
+  return <ParticipantBody token={token} home={home} formKey={formKey} revision={revision} refresh={refresh} entries={entries.state} />
 }
 
 function useEntries(token: string) {
@@ -44,26 +44,40 @@ function useEntries(token: string) {
   return useAsync(load)
 }
 
-function useStats(token: string) {
-  const loadFor = useCallback((season: number | undefined) => readStats(token, season), [token])
-  return useSeasonBrowse(loadFor)
-}
-
-function ParticipantBody({ token, home, formKey, refresh, entries, stats }: ParticipantBodyProps) {
+function ParticipantBody({ token, home, formKey, revision, refresh, entries }: ParticipantBodyProps) {
   return (
     <Shell title={home.name} subtitle={home.group_name}>
       <Logging key={`${formKey}-${home.default_place ?? ""}`} token={token} home={home} onSaved={refresh} />
       <OwnList token={token} state={entries} places={home.places} onChanged={refresh} />
-      <StatsBoard browse={stats} />
+      <GroupBoards token={token} groups={home.groups} revision={revision} />
     </Shell>
   )
 }
 
-function refreshAll(reloadEntries: () => void, reloadHome: () => void, reloadStats: () => void, setFormKey: FormKey) {
+function GroupBoards({ token, groups, revision }: { token: string; groups: Named[]; revision: number }) {
+  return <>{groups.map((group) => <GroupBoard key={group.id} token={token} group={group} revision={revision} />)}</>
+}
+
+function GroupBoard({ token, group, revision }: { token: string; group: Named; revision: number }) {
+  const browse = useGroupStats(token, group.id, revision)
+  return (
+    <section>
+      <h2 className="mt-2 text-lg font-semibold">{group.name}</h2>
+      <StatsBoard browse={browse} />
+    </section>
+  )
+}
+
+function useGroupStats(token: string, groupId: number, revision: number) {
+  const loadFor = useCallback((season: number | undefined) => readStats(token, season, groupId), [token, groupId, revision])
+  return useSeasonBrowse(loadFor)
+}
+
+function refreshAll(reloadEntries: () => void, reloadHome: () => void, setFormKey: FormKey, setRevision: FormKey) {
   reloadEntries()
   reloadHome()
-  reloadStats()
   setFormKey((value) => value + 1)
+  setRevision((value) => value + 1)
 }
 
 function Logging({ token, home, onSaved }: { token: string; home: Home; onSaved: () => void }) {

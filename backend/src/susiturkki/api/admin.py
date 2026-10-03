@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Response
 
 from susiturkki.api.deps import get_clock, get_repository, get_settings, require_admin
-from susiturkki.api.present import entry_json, group_json, named_json, participant_json, stats_json
-from susiturkki.api.schemas import AdminEntryBody, EntryBody, NameBody, PasswordBody
+from susiturkki.api.present import entry_json, group_json, named_json, participant_json, person_json, stats_json
+from susiturkki.api.schemas import AdminEntryBody, EntryBody, MemberBody, NameBody, PasswordBody
 from susiturkki.application.auth import ensure_password
 from susiturkki.application.entries import add_admin_entry, delete_admin_entry, list_group_entries, update_admin_entry
 from susiturkki.application.groups import create_group, delete_group, list_groups, rename_group
 from susiturkki.application.statistics import statistics_for_group
-from susiturkki.application.participants import add_participant, remove_participant, rename_participant, renew_link
+from susiturkki.application.participants import enroll, list_persons, remove_participant, rename_participant, renew_link
 
 public = APIRouter(prefix="/api/admin")
 secured = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
@@ -47,9 +47,14 @@ def remove_group(group_id: int, repository=Depends(get_repository)) -> Response:
     return Response(status_code=204)
 
 
+@secured.get("/persons")
+def read_persons(repository=Depends(get_repository)) -> list[dict]:
+    return [person_json(person) for person in list_persons(repository)]
+
+
 @secured.post("/groups/{group_id}/participants", status_code=201)
-def post_participant(group_id: int, body: NameBody, repository=Depends(get_repository)) -> dict:
-    return participant_json(add_participant(repository, group_id, body.name))
+def post_participant(group_id: int, body: MemberBody, repository=Depends(get_repository)) -> dict:
+    return participant_json(enroll(repository, group_id, body.name, body.person_id))
 
 
 @secured.patch("/participants/{participant_id}")

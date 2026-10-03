@@ -3,7 +3,8 @@ import threading
 from datetime import datetime
 
 from susiturkki.domain.errors import RuleError
-from susiturkki.domain.models import Entry, Group, Participant
+from susiturkki.domain.models import Entry, Group, Participant, Person
+from susiturkki.infrastructure.migrate import upgrade_if_legacy
 from susiturkki.infrastructure.sqlite_rows import (
     dump_time,
     entry_from,
@@ -11,6 +12,7 @@ from susiturkki.infrastructure.sqlite_rows import (
     group_from,
     new_entry,
     participant_from,
+    person_from,
 )
 
 SCHEMA = """
@@ -18,21 +20,26 @@ CREATE TABLE IF NOT EXISTS groups (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS participants (
+CREATE TABLE IF NOT EXISTS persons (
     id INTEGER PRIMARY KEY,
-    group_id INTEGER NOT NULL REFERENCES groups(id),
     name TEXT NOT NULL,
     token TEXT NOT NULL UNIQUE
 );
+CREATE TABLE IF NOT EXISTS participants (
+    id INTEGER PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES groups(id),
+    person_id INTEGER NOT NULL REFERENCES persons(id),
+    UNIQUE (group_id, person_id)
+);
 CREATE TABLE IF NOT EXISTS entries (
     id INTEGER PRIMARY KEY,
-    participant_id INTEGER NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+    person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     performed_at TEXT NOT NULL,
     distance_tenths INTEGER NOT NULL,
     place TEXT,
     created_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS entries_participant ON entries(participant_id);
+CREATE INDEX IF NOT EXISTS entries_person ON entries(person_id);
 """
 
 SELECT_GROUPS = "SELECT id, name FROM groups ORDER BY name, id"
@@ -43,21 +50,35 @@ DELETE_GROUP = "DELETE FROM groups WHERE id = ?"
 COUNT_PARTICIPANTS = "SELECT COUNT(*) AS total FROM participants WHERE group_id = ?"
 COUNT_ENTRIES = """
 SELECT COUNT(*) AS total FROM entries e
-JOIN participants p ON p.id = e.participant_id
-WHERE p.group_id = ?
+JOIN participants m ON m.person_id = e.person_id
+WHERE m.group_id = ?
 """
-SELECT_PARTICIPANTS = """
-SELECT id, group_id, name, token FROM participants
-WHERE group_id = ? ORDER BY name, id
+MEMBER_COLUMNS = "m.id, m.group_id, s.name, s.token, m.person_id"
+SELECT_PARTICIPANTS = f"""
+SELECT {MEMBER_COLUMNS} FROM participants m
+JOIN persons s ON s.id = m.person_id
+WHERE m.group_id = ? ORDER BY s.name, m.id
 """
-SELECT_PARTICIPANT = "SELECT id, group_id, name, token FROM participants WHERE id = ?"
-SELECT_PARTICIPANT_TOKEN = "SELECT id, group_id, name, token FROM participants WHERE token = ?"
-INSERT_PARTICIPANT = "INSERT INTO participants (group_id, name, token) VALUES (?, ?, ?)"
-UPDATE_PARTICIPANT = "UPDATE participants SET name = ? WHERE id = ?"
-UPDATE_TOKEN = "UPDATE participants SET token = ? WHERE id = ?"
-DELETE_PARTICIPANT = "DELETE FROM participants WHERE id = ?"
+SELECT_PARTICIPANT = f"""
+SELECT {MEMBER_COLUMNS} FROM participants m
+JOIN persons s ON s.id = m.person_id WHERE m.id = ?
+"""
+SELECT_MEMBERSHIPS = f"""
+SELECT {MEMBER_COLUMNS} FROM participants m
+JOIN persons s ON s.id = m.person_id WHERE m.person_id = ? ORDER BY m.id
+"""
+COUNT_MEMBERSHIPS = "SELECT COUNT(*) AS total FROM participants WHERE person_id = ?"
+SELECT_PERSONS = "SELECT id, name, token FROM persons ORDER BY name, id"
+SELECT_PERSON = "SELECT id, name, token FROM persons WHERE id = ?"
+SELECT_PERSON_TOKEN = "SELECT id, name, token FROM persons WHERE token = ?"
+INSERT_PERSON = "INSERT INTO persons (name, token) VALUES (?, ?)"
+INSERT_MEMBERSHIP = "INSERT INTO participants (group_id, person_id) VALUES (?, ?)"
+UPDATE_PERSON = "UPDATE persons SET name = ? WHERE id = ?"
+UPDATE_TOKEN = "UPDATE persons SET token = ? WHERE id = ?"
+DELETE_MEMBERSHIP = "DELETE FROM participants WHERE id = ?"
+DELETE_PERSON = "DELETE FROM persons WHERE id = ?"
 INSERT_ENTRY = """
-INSERT INTO entries (participant_id, performed_at, distance_tenths, place, created_at)
+INSERT INTO entries (person_id, performed_at, distance_tenths, place, created_at)
 VALUES (?, ?, ?, ?, ?)
 """
 UPDATE_ENTRY = """
@@ -65,17 +86,17 @@ UPDATE entries SET performed_at = ?, distance_tenths = ?, place = ? WHERE id = ?
 """
 DELETE_ENTRY = "DELETE FROM entries WHERE id = ?"
 SELECT_ENTRY = """
-SELECT id, participant_id, performed_at, distance_tenths, place, created_at
+SELECT id, person_id AS participant_id, performed_at, distance_tenths, place, created_at
 FROM entries WHERE id = ?
 """
-SELECT_PARTICIPANT_ENTRIES = """
-SELECT id, participant_id, performed_at, distance_tenths, place, created_at
-FROM entries WHERE participant_id = ? ORDER BY performed_at DESC, id DESC
+SELECT_PERSON_ENTRIES = """
+SELECT id, person_id AS participant_id, performed_at, distance_tenths, place, created_at
+FROM entries WHERE person_id = ? ORDER BY performed_at DESC, id DESC
 """
 SELECT_GROUP_ENTRIES = """
-SELECT e.id, e.participant_id, e.performed_at, e.distance_tenths, e.place, e.created_at
-FROM entries e JOIN participants p ON p.id = e.participant_id
-WHERE p.group_id = ? ORDER BY e.performed_at DESC, e.id DESC
+SELECT e.id, m.id AS participant_id, e.performed_at, e.distance_tenths, e.place, e.created_at
+FROM entries e JOIN participants m ON m.person_id = e.person_id
+WHERE m.group_id = ? ORDER BY e.performed_at DESC, e.id DESC
 """
 
 
@@ -112,15 +133,32 @@ class SqliteSkiRepository:
         return self._count(COUNT_ENTRIES, (group_id,))
 
     def add_participant(self, group_id: int, name: str, token: str) -> Participant:
-        row_id = self._insert(INSERT_PARTICIPANT, (group_id, name, token))
-        return Participant(row_id, group_id, name, token)
+        person_id = self._insert(INSERT_PERSON, (name, token))
+        return self._membership(group_id, person_id)
+
+    def add_membership(self, group_id: int, person_id: int) -> Participant:
+        self._person(person_id)
+        return self._membership(group_id, person_id)
+
+    def list_persons(self) -> list[Person]:
+        return [person_from(row) for row in self._rows(SELECT_PERSONS)]
+
+    def get_person_by_token(self, token: str) -> Person | None:
+        return _first(self._rows(SELECT_PERSON_TOKEN, (token,)), person_from)
+
+    def list_memberships(self, person_id: int) -> list[Participant]:
+        rows = self._rows(SELECT_MEMBERSHIPS, (person_id,))
+        return [participant_from(row) for row in rows]
 
     def rename_participant(self, participant_id: int, name: str) -> Participant:
-        self._ensure_changed(UPDATE_PARTICIPANT, (name, participant_id), "participant_not_found")
+        person_id = self._participant(participant_id).person_id
+        self._ensure_changed(UPDATE_PERSON, (name, person_id), "participant_not_found")
         return self._participant(participant_id)
 
     def delete_participant(self, participant_id: int) -> None:
-        self._ensure_changed(DELETE_PARTICIPANT, (participant_id,), "participant_not_found")
+        person_id = self._participant(participant_id).person_id
+        self._ensure_changed(DELETE_MEMBERSHIP, (participant_id,), "participant_not_found")
+        self._drop_person_without_groups(person_id)
 
     def list_participants(self, group_id: int) -> list[Participant]:
         rows = self._rows(SELECT_PARTICIPANTS, (group_id,))
@@ -129,18 +167,15 @@ class SqliteSkiRepository:
     def get_participant(self, participant_id: int) -> Participant | None:
         return _first(self._rows(SELECT_PARTICIPANT, (participant_id,)), participant_from)
 
-    def get_participant_by_token(self, token: str) -> Participant | None:
-        rows = self._rows(SELECT_PARTICIPANT_TOKEN, (token,))
-        return _first(rows, participant_from)
-
     def replace_token(self, participant_id: int, token: str) -> Participant:
-        self._ensure_changed(UPDATE_TOKEN, (token, participant_id), "participant_not_found")
+        person_id = self._participant(participant_id).person_id
+        self._ensure_changed(UPDATE_TOKEN, (token, person_id), "participant_not_found")
         return self._participant(participant_id)
 
-    def add_entry(self, participant_id: int, performed_at: datetime, distance_tenths: int, place, created_at) -> Entry:
-        params = entry_params(participant_id, performed_at, distance_tenths, place, created_at)
+    def add_entry(self, person_id: int, performed_at: datetime, distance_tenths: int, place, created_at) -> Entry:
+        params = entry_params(person_id, performed_at, distance_tenths, place, created_at)
         row_id = self._insert(INSERT_ENTRY, params)
-        return new_entry(row_id, participant_id, performed_at, distance_tenths, place, created_at)
+        return new_entry(row_id, person_id, performed_at, distance_tenths, place, created_at)
 
     def update_entry(self, entry_id: int, performed_at: datetime, distance_tenths: int, place) -> Entry:
         params = (dump_time(performed_at), distance_tenths, place, entry_id)
@@ -153,8 +188,8 @@ class SqliteSkiRepository:
     def get_entry(self, entry_id: int) -> Entry | None:
         return _first(self._rows(SELECT_ENTRY, (entry_id,)), entry_from)
 
-    def list_entries_for_participant(self, participant_id: int) -> list[Entry]:
-        rows = self._rows(SELECT_PARTICIPANT_ENTRIES, (participant_id,))
+    def list_entries_for_person(self, person_id: int) -> list[Entry]:
+        rows = self._rows(SELECT_PERSON_ENTRIES, (person_id,))
         return [entry_from(row) for row in rows]
 
     def list_entries_for_group(self, group_id: int) -> list[Entry]:
@@ -162,7 +197,25 @@ class SqliteSkiRepository:
 
     def _prepare(self) -> None:
         self._connection.execute("PRAGMA foreign_keys = ON")
+        upgrade_if_legacy(self._connection)
         self._connection.executescript(SCHEMA)
+
+    def _membership(self, group_id: int, person_id: int) -> Participant:
+        try:
+            row_id = self._insert(INSERT_MEMBERSHIP, (group_id, person_id))
+        except sqlite3.IntegrityError:
+            raise RuleError("already_member") from None
+        return self._participant(row_id)
+
+    def _drop_person_without_groups(self, person_id: int) -> None:
+        if self._count(COUNT_MEMBERSHIPS, (person_id,)) == 0:
+            self._change(DELETE_PERSON, (person_id,))
+
+    def _person(self, person_id: int) -> Person:
+        person = _first(self._rows(SELECT_PERSON, (person_id,)), person_from)
+        if person is None:
+            raise RuleError("participant_not_found")
+        return person
 
     def _participant(self, participant_id: int) -> Participant:
         participant = self.get_participant(participant_id)
@@ -190,7 +243,11 @@ class SqliteSkiRepository:
 
     def _run(self, sql: str, params: tuple) -> tuple[int, int]:
         with self._lock:
-            cursor = self._connection.execute(sql, params)
+            try:
+                cursor = self._connection.execute(sql, params)
+            except sqlite3.IntegrityError:
+                self._connection.rollback()
+                raise
             outcome = (int(cursor.lastrowid or 0), cursor.rowcount)
             self._connection.commit()
             return outcome

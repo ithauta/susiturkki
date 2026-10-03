@@ -1,12 +1,13 @@
-from susiturkki.application.access import require_group, require_participant_token
+from susiturkki.application.access import membership_for, require_group, require_person
 from susiturkki.application.ports import Clock, SkiRepository
 from susiturkki.domain.season import default_season_start_year
 from susiturkki.domain.stats import SeasonStats, season_stats
 
 
-def statistics_for_token(repository: SkiRepository, clock: Clock, token: str, season: int | None) -> SeasonStats:
-    participant = require_participant_token(repository, token)
-    return statistics_for_group(repository, clock, participant.group_id, season)
+def statistics_for_token(repository, clock, token: str, season: int | None, group_id: int | None = None) -> SeasonStats:
+    person = require_person(repository, token)
+    membership = membership_for(repository, person.id, group_id)
+    return statistics_for_group(repository, clock, membership.group_id, season)
 
 
 def statistics_for_group(repository: SkiRepository, clock: Clock, group_id: int, season: int | None) -> SeasonStats:

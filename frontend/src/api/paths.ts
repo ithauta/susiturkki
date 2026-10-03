@@ -7,8 +7,23 @@ export function groupPath(groupId: number, suffix = ""): string {
 }
 
 export function seasonQuery(season: number | undefined): string {
-  if (season === undefined) return ""
-  return `?season=${season}`
+  return queryString(season, undefined)
+}
+
+export function statsQuery(season: number | undefined, groupId: number | undefined): string {
+  return queryString(season, groupId)
+}
+
+function queryString(season: number | undefined, groupId: number | undefined): string {
+  const params = new URLSearchParams()
+  setNumber(params, "season", season)
+  setNumber(params, "group_id", groupId)
+  const query = params.toString()
+  return query ? `?${query}` : ""
+}
+
+function setNumber(params: URLSearchParams, key: string, value: number | undefined) {
+  if (value !== undefined) params.set(key, String(value))
 }
 
 export function participantLink(token: string): string {

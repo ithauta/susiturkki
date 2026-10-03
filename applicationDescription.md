@@ -4,19 +4,19 @@ Susiturkki on maastohiihdon kilometrimittari. Osallistujat kirjaavat hiihtokilom
 
 ## Käyttäjät ja pääsy
 
-Osallistuja ei ole erillinen käyttäjätili. Pääkäyttäjä lisää henkilön ryhmään ja antaa nimen. Osallistuja ei voi vaihtaa nimeään. Jokaisella ryhmäjäsenyydellä on oma yksityinen linkki, jolla osallistuja kirjaa kilometrejä ja katsoo kyseisen ryhmän tietoja. Linkki avaa vain sen ryhmän.
+Osallistuja ei ole erillinen käyttäjätili. Pääkäyttäjä lisää henkilön ryhmään ja antaa nimen. Osallistuja ei voi vaihtaa nimeään. Henkilöllä on yksi yksityinen linkki. Hän kirjaa kilometrit kerran, ja sama kirjaus kertyy jokaiseen ryhmään, johon hän kuuluu. Linkki näyttää kaikkien hänen ryhmiensä kertymät.
 
-Sama ihminen voi kuulua useaan ryhmään. Jokaisella jäsenyydellä on oma linkki ja oma nimi.
+Sama ihminen voi kuulua useaan ryhmään. Nimi ja linkki ovat yhteiset. Pääkäyttäjä voi liittää olemassa olevan henkilön toiseen ryhmään.
 
-Pääkäyttäjä on yksi koko sovellukselle, ja hän kirjautuu salasanalla. Hän hallitsee kaikkia ryhmiä: lisää, muokkaa ja poistaa osallistujia sekä kirjauksia milloin tahansa, ja voi uusia yksityisen linkin. Uusiminen mitätöi vanhan linkin.
+Pääkäyttäjä on yksi koko sovellukselle, ja hän kirjautuu salasanalla. Hän hallitsee kaikkia ryhmiä: lisää, muokkaa ja poistaa osallistujia sekä kirjauksia milloin tahansa, ja voi uusia yksityisen linkin. Uusiminen mitätöi vanhan linkin kaikissa ryhmissä.
 
 ## Ryhmät
 
 Pääkäyttäjä luo ryhmän ja lisää siihen osallistujat. Osallistuja on aina jonkin ryhmän jäsen, koska hänet luodaan ryhmään.
 
-Osallistujan poisto hävittää hänet, hänen linkkinsä ja kaikki hänen kirjauksensa siitä ryhmästä.
+Osallistujan poistaminen ryhmästä poistaa vain sen jäsenyyden. Jos hän kuuluu vielä toiseen ryhmään, kirjaukset säilyvät ja näkyvät siellä. Viimeisen ryhmän poistaminen hävittää henkilön, linkin ja kirjaukset.
 
-Ryhmän voi poistaa vain, kun siinä ei ole osallistujia eikä kirjauksia. Jäsenet poistetaan ensin, jolloin myös heidän kirjauksensa katoavat.
+Ryhmän voi poistaa vain, kun siinä ei ole osallistujia. Jäsenet poistetaan ensin.
 
 ## Kilometrikirjaus
 
@@ -24,7 +24,7 @@ Kirjauksessa on kolme kenttää:
 
 - **Ajankohta** (pakollinen). Päivämäärä ja kellonaika. Oletus on kirjaushetki. Aikavyöhyke on Europe/Helsinki.
 - **Pituus** (pakollinen). Kilometrit yhden desimaalin tarkkuudella, esimerkiksi 10,1. Luvun on oltava positiivinen.
-- **Paikka** (valinnainen). Suorituspaikka, esimerkiksi "Sievin valaistulatu". Uusi paikka tallennetaan ja näytetään myöhemmin pikavalintana. Pikavalinnoissa ovat myös saman ryhmän muiden jäsenten paikat. Oletuksena on tämän osallistujan edellinen paikka samassa ryhmässä.
+- **Paikka** (valinnainen). Suorituspaikka, esimerkiksi "Sievin valaistulatu". Uusi paikka tallennetaan ja näytetään myöhemmin pikavalintana. Pikavalinnoissa ovat paikat kaikista ryhmistä, joihin henkilö kuuluu, myös muiden jäsenten paikat niissä. Oletuksena on tämän henkilön edellinen paikka.
 
 Osallistuja voi asettaa suoritusajankohdan enintään 14 vuorokautta menneisyyteen nykyhetkestä. Tulevaa aikaa ei sallita. Suorituspäivän on lisäksi osuttava hiihtokaudelle (1.10.–30.4.). Osallistuja ei siis käytännössä kirjaa aiemmalle kaudelle.
 

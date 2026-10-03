@@ -1,6 +1,6 @@
 from susiturkki.application.ports import SkiRepository
 from susiturkki.domain.errors import RuleError
-from susiturkki.domain.models import Entry, Group, Participant
+from susiturkki.domain.models import Entry, Group, Participant, Person
 
 
 def require_group(repository: SkiRepository, group_id: int) -> Group:
@@ -17,11 +17,15 @@ def require_participant(repository: SkiRepository, participant_id: int) -> Parti
     return participant
 
 
-def require_participant_token(repository: SkiRepository, token: str) -> Participant:
-    participant = repository.get_participant_by_token(token)
-    if participant is None:
+def require_person(repository: SkiRepository, token: str) -> Person:
+    person = repository.get_person_by_token(token)
+    if person is None:
         raise RuleError("participant_not_found")
-    return participant
+    return person
+
+
+def membership_for(repository: SkiRepository, person_id: int, group_id: int | None) -> Participant:
+    return _chosen(repository.list_memberships(person_id), group_id)
 
 
 def require_entry(repository: SkiRepository, entry_id: int) -> Entry:
@@ -39,8 +43,27 @@ def require_participant_in_group(repository: SkiRepository, group_id: int, parti
     return participant
 
 
-def require_own_entry(repository: SkiRepository, participant_id: int, entry_id: int) -> Entry:
+def require_own_entry(repository: SkiRepository, person_id: int, entry_id: int) -> Entry:
     entry = require_entry(repository, entry_id)
-    if entry.participant_id != participant_id:
+    if entry.participant_id != person_id:
         raise RuleError("entry_not_found")
     return entry
+
+
+def _chosen(memberships: list[Participant], group_id: int | None) -> Participant:
+    if group_id is None:
+        return _only_membership(memberships)
+    return _matching_group(memberships, group_id)
+
+
+def _only_membership(memberships: list[Participant]) -> Participant:
+    if len(memberships) != 1:
+        raise RuleError("group_not_found")
+    return memberships[0]
+
+
+def _matching_group(memberships: list[Participant], group_id: int) -> Participant:
+    found = [item for item in memberships if item.group_id == group_id]
+    if not found:
+        raise RuleError("group_not_found")
+    return found[0]

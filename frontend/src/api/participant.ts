@@ -1,5 +1,5 @@
 import { readJson, sendJson } from "./client"
-import { participantPath, seasonQuery } from "./paths"
+import { participantPath, statsQuery } from "./paths"
 import type { Entry, EntryBody, Home, SeasonStats } from "./types"
 
 export function readHome(token: string): Promise<Home> {
@@ -10,8 +10,8 @@ export function readEntries(token: string): Promise<Entry[]> {
   return readJson(participantPath(token, "/entries"))
 }
 
-export function readStats(token: string, season?: number): Promise<SeasonStats> {
-  return readJson(participantPath(token, `/stats${seasonQuery(season)}`))
+export function readStats(token: string, season: number | undefined, groupId: number): Promise<SeasonStats> {
+  return readJson(participantPath(token, `/stats${statsQuery(season, groupId)}`))
 }
 
 export async function createEntry(token: string, body: EntryBody): Promise<Entry> {

@@ -28,9 +28,14 @@ function Desk({ groups, group, reload, onSelect }: { groups: Group[]; group?: Gr
     <>
       <NameForm label={text("groups.name")} submitLabel={text("groups.create")} onSubmit={(name) => addGroup(name, onSelect, reload)} />
       <GroupChoices groups={groups} selected={group?.id} onSelect={onSelect} />
-      {group ? <GroupPanel key={group.id} group={group} reload={reload} /> : null}
+      {group ? <GroupPanel key={panelKey(group)} group={group} reload={reload} /> : null}
     </>
   )
+}
+
+function panelKey(group: Group): string {
+  const members = group.participants.map((member) => member.id).join("-")
+  return `${group.id}-${members}`
 }
 
 function GroupChoices({ groups, selected, onSelect }: { groups: Group[]; selected?: number; onSelect: (id: number) => void }) {

@@ -44,5 +44,5 @@ def remove_entry(token: str, entry_id: int, repository=Depends(get_repository), 
 
 
 @router.get("/{token}/stats")
-def read_stats(token: str, season: int | None = None, repository=Depends(get_repository), clock=Depends(get_clock)) -> dict:
-    return stats_json(statistics_for_token(repository, clock, token, season))
+def read_stats(token: str, season: int | None = None, group_id: int | None = None, repository=Depends(get_repository), clock=Depends(get_clock)) -> dict:
+    return stats_json(statistics_for_token(repository, clock, token, season, group_id))

@@ -1,6 +1,7 @@
 export type Home = {
   group_id: number
   group_name: string
+  groups: Named[]
   participant_id: number
   name: string
   default_place: string | null
@@ -56,9 +57,16 @@ export type SeasonStats = {
   recent: MemberRecent[]
 }
 
+export type Person = {
+  id: number
+  name: string
+  token: string
+}
+
 export type Participant = {
   id: number
   group_id: number
+  person_id: number
   name: string
   token: string
 }

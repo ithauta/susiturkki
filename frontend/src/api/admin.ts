@@ -1,6 +1,6 @@
 import { readJson, sendJson } from "./client"
 import { groupPath, seasonQuery } from "./paths"
-import type { Entry, EntryBody, Group, Named, Participant, SeasonStats } from "./types"
+import type { Entry, EntryBody, Group, Named, Participant, Person, SeasonStats } from "./types"
 
 export function login(password: string): Promise<Response> {
   return sendJson("/api/admin/login", "POST", { password })
@@ -27,8 +27,17 @@ export function deleteGroup(groupId: number): Promise<Response> {
   return sendJson(groupPath(groupId), "DELETE")
 }
 
+export function readPersons(): Promise<Person[]> {
+  return readJson("/api/admin/persons")
+}
+
 export async function createMember(groupId: number, name: string): Promise<Participant> {
   const response = await sendJson(groupPath(groupId, "/participants"), "POST", { name })
+  return response.json() as Promise<Participant>
+}
+
+export async function attachMember(groupId: number, personId: number): Promise<Participant> {
+  const response = await sendJson(groupPath(groupId, "/participants"), "POST", { person_id: personId })
   return response.json() as Promise<Participant>
 }
 

@@ -9,11 +9,19 @@ class Group:
 
 
 @dataclass(frozen=True)
+class Person:
+    id: int
+    name: str
+    token: str
+
+
+@dataclass(frozen=True)
 class Participant:
     id: int
     group_id: int
     name: str
     token: str
+    person_id: int = 0
 
 
 @dataclass(frozen=True)

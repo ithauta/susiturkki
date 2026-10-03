@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from susiturkki.domain.models import Entry, Group, Participant
+from susiturkki.domain.models import Entry, Group, Participant, Person
 from susiturkki.domain.time import in_helsinki
 
 
@@ -16,8 +16,12 @@ def group_from(row) -> Group:
     return Group(int(row["id"]), row["name"])
 
 
+def person_from(row) -> Person:
+    return Person(int(row["id"]), row["name"], row["token"])
+
+
 def participant_from(row) -> Participant:
-    return Participant(int(row["id"]), int(row["group_id"]), row["name"], row["token"])
+    return Participant(int(row["id"]), int(row["group_id"]), row["name"], row["token"], int(row["person_id"]))
 
 
 def entry_from(row) -> Entry:

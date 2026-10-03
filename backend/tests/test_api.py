@@ -194,7 +194,56 @@ def _admin_entry(app, member: dict, performed_at: str, distance: str):
     )
 
 
+def test_one_log_counts_in_every_group() -> None:
+    app = _open(at(2025, 10, 15))
+    north = add_member(app, "Pohjoinen", "Aino")
+    south = app.client.post("/api/admin/groups", json={"name": "Etelä"}).json()
+    joined = _join(app, south["id"], north["participant"]["person_id"])
+    _log(app, north["participant"]["token"], "2025-10-14T12:00:00", "10.1", "Sievi")
+    assert joined["token"] == north["participant"]["token"]
+    assert _total(app, north["group"]["id"]) == "10.1"
+    assert _total(app, south["id"]) == "10.1"
+    home = app.client.get(f"/api/p/{north['participant']['token']}").json()
+    assert [group["name"] for group in home["groups"]] == ["Etelä", "Pohjoinen"]
+
+
+def test_same_person_cannot_join_a_group_twice() -> None:
+    app = _open(at(2025, 10, 15))
+    member = add_member(app)
+    again = app.client.post(
+        f"/api/admin/groups/{member['group']['id']}/participants",
+        json={"person_id": member["participant"]["person_id"]},
+    )
+    assert again.status_code == 400
+    assert again.json()["code"] == "already_member"
+
+
+def test_leaving_one_group_keeps_the_ski_in_the_other() -> None:
+    app = _open(at(2025, 10, 15))
+    north = add_member(app, "Pohjoinen", "Aino")
+    south = app.client.post("/api/admin/groups", json={"name": "Etelä"}).json()
+    joined = _join(app, south["id"], north["participant"]["person_id"])
+    _log(app, north["participant"]["token"], "2025-10-14T12:00:00", "10.1", "Sievi")
+    removed = app.client.delete(f"/api/admin/participants/{joined['id']}")
+    assert removed.status_code == 204
+    assert app.client.get(f"/api/p/{north['participant']['token']}").status_code == 200
+    assert _total(app, north["group"]["id"]) == "10.1"
+    assert app.client.get(f"/api/admin/groups/{south['id']}/entries").json() == []
+
+
+def _join(app, group_id: int, person_id: int) -> dict:
+    response = app.client.post(f"/api/admin/groups/{group_id}/participants", json={"person_id": person_id})
+    assert response.status_code == 201
+    return response.json()
+
+
+def _total(app, group_id: int) -> str:
+    stats = app.client.get(f"/api/admin/groups/{group_id}/stats")
+    return stats.json()["season_totals"][0]["kilometers"]
+
+
 def _aged_entry(app, participant_id: int) -> int:
     created = app.clock.moment - timedelta(days=8)
-    stored = app.repository.add_entry(participant_id, at(2026, 4, 28), 10, "Sievi", created)
+    person_id = app.repository.get_participant(participant_id).person_id
+    stored = app.repository.add_entry(person_id, at(2026, 4, 28), 10, "Sievi", created)
     return stored.id
