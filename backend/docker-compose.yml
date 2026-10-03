@@ -6,7 +6,7 @@ services:
     ports:
       - ${API_PUBLISH:?set API_PUBLISH in backend/.env}
     environment:
-      DATABASE_PATH: /data/susiturkki.db
+      DATABASE_PATH: ${DATABASE_PATH:?set DATABASE_PATH in backend/.env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in backend/.env}
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in backend/.env}
       SESSION_HTTPS: ${SESSION_HTTPS:?set SESSION_HTTPS in backend/.env}

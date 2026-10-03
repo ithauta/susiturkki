@@ -11,11 +11,7 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    return Settings(_database_path(), _required("ADMIN_PASSWORD"), _required("SESSION_SECRET"), _flag("SESSION_HTTPS"))
-
-
-def _database_path() -> str:
-    return os.environ.get("DATABASE_PATH", "susiturkki.db")
+    return Settings(_required("DATABASE_PATH"), _required("ADMIN_PASSWORD"), _required("SESSION_SECRET"), _flag("SESSION_HTTPS"))
 
 
 def _required(name: str) -> str:

@@ -4,6 +4,7 @@ Maastohiihdon kilometrimittari. Selainkäyttöliittymä ja rajapinta tulevat sam
 
 Tarvitset nämä ympäristömuuttujat tiedostossa `backend/.env`:
 
+- `DATABASE_PATH` on SQLite-tiedoston polku. Kontissa sen on oltava volumessa `/data`, esimerkiksi `/data/susiturkki.db`.
 - `ADMIN_PASSWORD` on pääkäyttäjän salasana
 - `SESSION_SECRET` on evästeen allekirjoitusavain
 - `SESSION_HTTPS` on `true` tai `false`. Arvo `true` merkitsee istuntoevästeen vain HTTPS-yhteydelle.
@@ -21,7 +22,7 @@ Siirry hakemistoon `backend` ja tee salaisuudet tiedostoon `.env`. Tiedostoa ei 
 
 ```bash
 cd backend
-printf 'ADMIN_PASSWORD=%s\nSESSION_SECRET=%s\nSESSION_HTTPS=\nAPI_PUBLISH=\nLISTEN_HOST=\nLISTEN_PORT=\nFORWARDED_ALLOW_IPS=\n' "$(openssl rand -base64 24)" "$(openssl rand -hex 32)" > .env
+printf 'ADMIN_PASSWORD=%s\nSESSION_SECRET=%s\nDATABASE_PATH=\nSESSION_HTTPS=\nAPI_PUBLISH=\nLISTEN_HOST=\nLISTEN_PORT=\nFORWARDED_ALLOW_IPS=\n' "$(openssl rand -base64 24)" "$(openssl rand -hex 32)" > .env
 docker compose up --build
 ```
 
@@ -40,6 +41,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 export ADMIN_PASSWORD=vaihda-tama
 export SESSION_SECRET=vaihda-tama-kin
+export DATABASE_PATH=
 export SESSION_HTTPS=false
 export LISTEN_HOST=
 export LISTEN_PORT=
@@ -56,8 +58,6 @@ npm run dev
 ```
 
 Täydennä `API_ORIGIN` ennen `npm run dev`. Selain kutsuu suhteellista polkua `/api`, ja Vite välittää kutsut `API_ORIGIN`-osoitteeseen.
-
-Tietokanta syntyy tiedostoon `backend/susiturkki.db`. Polun voi vaihtaa muuttujalla `DATABASE_PATH`.
 
 ## Testit
 
