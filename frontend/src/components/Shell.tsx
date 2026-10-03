@@ -1,14 +1,39 @@
 import type { ReactNode } from "react"
 import { text } from "../i18n/text"
 
-type ShellProps = { title: string; subtitle?: string; action?: ReactNode; children: ReactNode }
+type ShellProps = {
+  title: string
+  subtitle?: string
+  action?: ReactNode
+  trailing?: ReactNode
+  head?: ReactNode
+  children: ReactNode
+}
 
-export function Shell({ title, subtitle, action, children }: ShellProps) {
+export function Shell({ title, subtitle, action, trailing, head, children }: ShellProps) {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-4 py-6">
+      <Heading trailing={trailing} action={action} title={title} subtitle={subtitle} head={head} />
+      {children}
+    </div>
+  )
+}
+
+function Heading({ trailing, action, title, subtitle, head }: Omit<ShellProps, "children">) {
+  return (
+    <div className="flex items-stretch gap-4">
+      <HeadingText action={action} title={title} subtitle={subtitle} head={head} />
+      {trailing}
+    </div>
+  )
+}
+
+function HeadingText({ action, title, subtitle, head }: Omit<ShellProps, "children" | "trailing">) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
       <TopBar action={action} />
       <PageTitle title={title} subtitle={subtitle} />
-      {children}
+      {head}
     </div>
   )
 }
