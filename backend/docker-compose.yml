@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_PATH: /data/susiturkki.db
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in backend/.env}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in backend/.env}
+    volumes:
+      - susiturkki-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    pids_limit: 64
+    mem_limit: 256m
+    user: "1000:1000"
+
+volumes:
+  susiturkki-data:

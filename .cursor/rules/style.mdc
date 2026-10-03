@@ -1,0 +1,18 @@
+---
+description: Clean code -tyyli koko projektille
+alwaysApply: true
+---
+
+# Tyyli
+
+- Funktio tekee yhden asian ja on mielellään alle kymmenen riviä.
+- Nimi kertoo tarkoituksen. Koodi on itseään selittävää.
+- Kommentteja vain rajapintoihin, ei toteutuksen sekaan.
+- Älä kopioi logiikkaa. Yhteinen sääntö sijaitsee yhdessä paikassa.
+- Domain-säännöt ovat puhtaita funktioita ilman tietokantaa ja HTTP:tä.
+
+```python
+def ensure_activity_in_season(performed_at: datetime) -> None:
+    if not is_in_season(performed_at):
+        raise RuleError("outside_season")
+```
