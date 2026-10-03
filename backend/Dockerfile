@@ -1,3 +1,10 @@
+FROM node:22-alpine AS ui
+WORKDIR /ui
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend ./
+RUN npm run build
+
 FROM python:3.13-slim-trixie
 
 RUN apt-get update \
@@ -8,13 +15,14 @@ RUN apt-get update \
     && chown susiturkki:susiturkki /data
 
 WORKDIR /app
-COPY pyproject.toml .
-COPY src src
+COPY backend/pyproject.toml .
+COPY backend/src src
+COPY --from=ui /ui/dist /app/static
 RUN pip install --no-cache-dir .
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    DATABASE_PATH=/data/susiturkki.db
-EXPOSE 8000
+    DATABASE_PATH=/data/susiturkki.db \
+    UI_DIR=/app/static
 USER susiturkki
-CMD ["uvicorn", "susiturkki.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "susiturkki.infrastructure.serve"]

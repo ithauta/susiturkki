@@ -137,6 +137,20 @@ def test_renewed_link_replaces_the_old_one() -> None:
     assert app.client.get(f"/api/p/{renewed.json()['token']}").status_code == 200
 
 
+def test_admin_stats_require_login() -> None:
+    app = make_app(at(2025, 10, 15))
+    assert app.client.get("/api/admin/groups/1/stats").status_code == 401
+
+
+def test_admin_stats_follow_the_group() -> None:
+    app = _open(at(2025, 10, 15))
+    member = add_member(app)
+    _log(app, member["participant"]["token"], "2025-10-14T12:00:00", "10.1", "Sievi")
+    stats = app.client.get(f"/api/admin/groups/{member['group']['id']}/stats")
+    assert stats.status_code == 200
+    assert stats.json()["season_totals"][0]["kilometers"] == "10.1"
+
+
 def test_logout_ends_the_admin_session() -> None:
     app = make_app(at(2025, 10, 15))
     login(app)

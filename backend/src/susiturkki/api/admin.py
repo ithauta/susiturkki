@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, Request, Response
 
 from susiturkki.api.deps import get_clock, get_repository, get_settings, require_admin
-from susiturkki.api.present import entry_json, group_json, named_json, participant_json
+from susiturkki.api.present import entry_json, group_json, named_json, participant_json, stats_json
 from susiturkki.api.schemas import AdminEntryBody, EntryBody, NameBody, PasswordBody
 from susiturkki.application.auth import ensure_password
 from susiturkki.application.entries import add_admin_entry, delete_admin_entry, list_group_entries, update_admin_entry
 from susiturkki.application.groups import create_group, delete_group, list_groups, rename_group
+from susiturkki.application.statistics import statistics_for_group
 from susiturkki.application.participants import add_participant, remove_participant, rename_participant, renew_link
 
 public = APIRouter(prefix="/api/admin")
@@ -65,6 +66,11 @@ def delete_participant(participant_id: int, repository=Depends(get_repository)) 
 @secured.post("/participants/{participant_id}/link")
 def post_link(participant_id: int, repository=Depends(get_repository)) -> dict:
     return participant_json(renew_link(repository, participant_id))
+
+
+@secured.get("/groups/{group_id}/stats")
+def read_group_stats(group_id: int, season: int | None = None, repository=Depends(get_repository), clock=Depends(get_clock)) -> dict:
+    return stats_json(statistics_for_group(repository, clock, group_id, season))
 
 
 @secured.get("/groups/{group_id}/entries")

@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-night: #0b1d36;
+  --color-snow: #f4f7fb;
+  --color-ice: #d6e6f2;
+  --color-spruce: #1f4d3a;
+  --color-aurora: #7ec8a3;
+  --color-berry: #c44536;
+  --color-ink: #102033;
+}
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1a3d66, var(--color-night) 55%);
+  color: var(--color-snow);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+@layer components {
+  .field {
+    @apply mt-1 min-h-12 w-full rounded-xl border border-ice bg-white px-3 text-base text-ink;
+  }
+  .btn {
+    @apply inline-flex min-h-12 cursor-pointer items-center justify-center rounded-xl bg-spruce px-4 text-base font-medium text-snow disabled:opacity-40;
+  }
+  .btn-quiet {
+    @apply inline-flex min-h-12 cursor-pointer items-center justify-center rounded-xl bg-ice px-3 text-sm font-medium text-ink disabled:opacity-40;
+  }
+  .btn-danger {
+    @apply inline-flex min-h-12 cursor-pointer items-center justify-center rounded-xl bg-berry px-4 text-base font-medium text-snow;
+  }
+  .card {
+    @apply rounded-3xl bg-snow p-4 text-ink shadow-lg shadow-black/10;
+  }
+}

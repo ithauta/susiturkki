@@ -1,14 +1,24 @@
 services:
   api:
-    build: .
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     ports:
-      - "127.0.0.1:8000:8000"
+      - ${API_PUBLISH:?set API_PUBLISH in backend/.env}
     environment:
       DATABASE_PATH: /data/susiturkki.db
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in backend/.env}
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in backend/.env}
+      SESSION_HTTPS: ${SESSION_HTTPS:?set SESSION_HTTPS in backend/.env}
+      LISTEN_HOST: ${LISTEN_HOST:?set LISTEN_HOST in backend/.env}
+      LISTEN_PORT: ${LISTEN_PORT:?set LISTEN_PORT in backend/.env}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS-}
+      SSL_CERT_FILE: ${SSL_CERT_FILE-}
+      SSL_KEY_FILE: ${SSL_KEY_FILE-}
     volumes:
       - susiturkki-data:/data
+      - ${SSL_CERT_FILE:-/dev/null}:${SSL_CERT_FILE:-/certs/cert.pem}:ro
+      - ${SSL_KEY_FILE:-/dev/null}:${SSL_KEY_FILE:-/certs/key.pem}:ro
     read_only: true
     tmpfs:
       - /tmp
