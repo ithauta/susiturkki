@@ -7,7 +7,10 @@ import { text } from "../i18n/text"
 import { ErrorText } from "./Status"
 import { Field } from "./Field"
 
-export type EntryDraft = { performed_at: string; distance_km: string; place: string }
+export type EntryDraft = { performed_at: string; distance_km: string; place: string; style: string; conditions: string }
+
+const STYLES = ["free", "classic", "ungroomed"]
+const CONDITIONS = ["slick", "normal", "heavy"]
 
 type EntryFormProps = {
   initial?: EntryDraft
@@ -30,31 +33,51 @@ export function EntryForm({ initial, places, listId, submitLabel, onSubmit }: En
 function EntryFields({ form, places, listId }: { form: ReturnType<typeof useDraft>; places: string[]; listId: string }) {
   return (
     <>
-      <WhenField value={form.performed} onChange={form.setPerformed} />
-      <DistanceField value={form.distance} onChange={form.setDistance} />
-      <PlaceField value={form.place} places={places} listId={listId} onChange={form.setPlace} />
+      <MeasureFields form={form} places={places} listId={listId} />
+      <ChoiceFields form={form} />
       <ErrorText code={form.code} />
     </>
   )
 }
 
-export function entryDraft(performed: string, distance: string, place: string): EntryBody {
-  return { performed_at: performed, distance_km: distanceForApi(distance), place: place.trim() || null }
+function MeasureFields({ form, places, listId }: { form: ReturnType<typeof useDraft>; places: string[]; listId: string }) {
+  return (
+    <>
+      <WhenField value={form.performed} onChange={form.setPerformed} />
+      <DistanceField value={form.distance} onChange={form.setDistance} />
+      <PlaceField value={form.place} places={places} listId={listId} onChange={form.setPlace} />
+    </>
+  )
+}
+
+function ChoiceFields({ form }: { form: ReturnType<typeof useDraft> }) {
+  return (
+    <>
+      <ChoiceField label={text("entry.style")} value={form.style} options={STYLES} group="style" onChange={form.setStyle} />
+      <ChoiceField label={text("entry.conditions")} value={form.conditions} options={CONDITIONS} group="conditions" onChange={form.setConditions} />
+    </>
+  )
+}
+
+export function entryDraft(form: ReturnType<typeof useDraft>): EntryBody {
+  return { performed_at: form.performed, distance_km: distanceForApi(form.distance), place: form.place.trim() || null, style: form.style, conditions: form.conditions }
 }
 
 function useDraft(initial?: EntryDraft) {
   const [performed, setPerformed] = useState(initial?.performed_at ?? helsinkiInput())
   const [distance, setDistance] = useState(initial?.distance_km ?? "")
   const [place, setPlace] = useState(initial?.place ?? "")
+  const [style, setStyle] = useState(initial?.style ?? "free")
+  const [conditions, setConditions] = useState(initial?.conditions ?? "normal")
   const [code, setCode] = useState("")
-  return { performed, setPerformed, distance, setDistance, place, setPlace, code, setCode }
+  return { performed, setPerformed, distance, setDistance, place, setPlace, style, setStyle, conditions, setConditions, code, setCode }
 }
 
 async function saveDraft(event: FormEvent, form: ReturnType<typeof useDraft>, onSubmit: (body: EntryBody) => Promise<void>) {
   event.preventDefault()
   form.setCode("")
   try {
-    await onSubmit(entryDraft(form.performed, form.distance, form.place))
+    await onSubmit(entryDraft(form))
   } catch (error) {
     form.setCode(errorCode(error))
   }
@@ -81,6 +104,16 @@ function PlaceField({ value, places, listId, onChange }: { value: string; places
     <Field label={text("entry.place")}>
       <input className="field" list={listId} value={value} onChange={(event) => onChange(event.target.value)} autoComplete="off" />
       <PlaceOptions listId={listId} places={places} />
+    </Field>
+  )
+}
+
+function ChoiceField({ label, value, options, group, onChange }: { label: string; value: string; options: string[]; group: string; onChange: (value: string) => void }) {
+  return (
+    <Field label={label}>
+      <select className="field" value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => <option key={option} value={option}>{text(`${group}.${option}`)}</option>)}
+      </select>
     </Field>
   )
 }

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from susiturkki.api.deps import get_clock, get_repository, get_settings, require_admin
 from susiturkki.api.present import entry_json, group_json, named_json, participant_json, person_json, stats_json
-from susiturkki.api.schemas import AdminEntryBody, EntryBody, MemberBody, NameBody, PasswordBody
+from susiturkki.api.schemas import AdminEntryBody, EntryBody, MemberBody, NameBody, PasswordBody, PersonNameBody
 from susiturkki.application.auth import ensure_password
 from susiturkki.application.entries import add_admin_entry, delete_admin_entry, list_group_entries, update_admin_entry
 from susiturkki.application.groups import create_group, delete_group, list_groups, rename_group
@@ -54,12 +54,12 @@ def read_persons(repository=Depends(get_repository)) -> list[dict]:
 
 @secured.post("/groups/{group_id}/participants", status_code=201)
 def post_participant(group_id: int, body: MemberBody, repository=Depends(get_repository)) -> dict:
-    return participant_json(enroll(repository, group_id, body.name, body.person_id))
+    return participant_json(enroll(repository, group_id, body.given_name, body.family_name, body.person_id))
 
 
 @secured.patch("/participants/{participant_id}")
-def patch_participant(participant_id: int, body: NameBody, repository=Depends(get_repository)) -> dict:
-    return participant_json(rename_participant(repository, participant_id, body.name))
+def patch_participant(participant_id: int, body: PersonNameBody, repository=Depends(get_repository)) -> dict:
+    return participant_json(rename_participant(repository, participant_id, body.given_name, body.family_name))
 
 
 @secured.delete("/participants/{participant_id}", status_code=204)
@@ -86,14 +86,14 @@ def read_entries(group_id: int, repository=Depends(get_repository)) -> list[dict
 @secured.post("/groups/{group_id}/entries", status_code=201)
 def post_entry(group_id: int, body: AdminEntryBody, repository=Depends(get_repository), clock=Depends(get_clock)) -> dict:
     entry = add_admin_entry(
-        repository, clock, group_id, body.participant_id, body.performed_at, body.distance_km, body.place
+        repository, clock, group_id, body.participant_id, body.performed_at, body.distance_km, body.place, body.style, body.conditions
     )
     return entry_json(entry)
 
 
 @secured.patch("/entries/{entry_id}")
 def patch_entry(entry_id: int, body: EntryBody, repository=Depends(get_repository), clock=Depends(get_clock)) -> dict:
-    entry = update_admin_entry(repository, clock, entry_id, body.performed_at, body.distance_km, body.place)
+    entry = update_admin_entry(repository, clock, entry_id, body.performed_at, body.distance_km, body.place, body.style, body.conditions)
     return entry_json(entry)
 
 

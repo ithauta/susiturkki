@@ -5,7 +5,7 @@ import { participantLink } from "../api/paths"
 import type { Group, Participant, Person } from "../api/types"
 import { ConfirmButton } from "../components/ConfirmButton"
 import { Field } from "../components/Field"
-import { NameForm, RenameForm } from "../components/NameForm"
+import { PersonNameForm, PersonRenameForm } from "../components/PersonNameForm"
 import { ErrorText } from "../components/Status"
 import { useAsync } from "../hooks/useAsync"
 import type { LoadState } from "../hooks/useAsync"
@@ -22,7 +22,7 @@ function MemberSection({ group, people, refresh }: { group: Group; people: LoadS
     <section className="card">
       <h2 className="text-lg font-semibold">{text("members.title")}</h2>
       <MemberRows group={group} refresh={refresh} />
-      <NameForm label={text("members.name")} submitLabel={text("members.add")} onSubmit={(name) => add(group.id, name, refresh)} />
+      <PersonNameForm submitLabel={text("members.add")} onSubmit={(given, family) => add(group.id, given, family, refresh)} />
       <AttachPerson group={group} people={people} reload={refresh} />
     </section>
   )
@@ -61,7 +61,7 @@ function choiceKey(choices: Person[]): string {
 function MemberRow({ member, reload }: { member: Participant; reload: () => void }) {
   return (
     <li className="mt-4 border-t border-ice pt-4">
-      <RenameForm key={member.name} name={member.name} label={text("members.name")} onSubmit={(name) => rename(member.id, name, reload)} />
+      <PersonRenameForm key={`${member.given_name}-${member.family_name}`} given={member.given_name} family={member.family_name} onSubmit={(given, family) => rename(member.id, given, family, reload)} />
       <MemberLink token={member.token} />
       <MemberActions memberId={member.id} reload={reload} />
     </li>
@@ -114,13 +114,13 @@ async function copy(link: string, setNote: (note: string) => void) {
   }
 }
 
-async function add(groupId: number, name: string, reload: () => void) {
-  await createMember(groupId, name)
+async function add(groupId: number, given: string, family: string, reload: () => void) {
+  await createMember(groupId, given, family)
   reload()
 }
 
-async function rename(participantId: number, name: string, reload: () => void) {
-  await renameMember(participantId, name)
+async function rename(participantId: number, given: string, family: string, reload: () => void) {
+  await renameMember(participantId, given, family)
   reload()
 }
 

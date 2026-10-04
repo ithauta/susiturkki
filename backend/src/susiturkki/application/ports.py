@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
+from susiturkki.domain.goal import SeasonGoal
 from susiturkki.domain.models import Entry, Group, Participant, Person
 
 
@@ -27,7 +28,7 @@ class SkiRepository(Protocol):
 
     def count_entries(self, group_id: int) -> int: ...
 
-    def add_participant(self, group_id: int, name: str, token: str) -> Participant: ...
+    def add_participant(self, group_id: int, given_name: str, family_name: str, token: str) -> Participant: ...
 
     def add_membership(self, group_id: int, person_id: int) -> Participant: ...
 
@@ -37,7 +38,13 @@ class SkiRepository(Protocol):
 
     def list_memberships(self, person_id: int) -> list[Participant]: ...
 
-    def rename_participant(self, participant_id: int, name: str) -> Participant: ...
+    def rename_participant(self, participant_id: int, given_name: str, family_name: str) -> Participant: ...
+
+    def set_birth_year(self, person_id: int, year: int | None) -> None: ...
+
+    def get_goal(self, person_id: int, season: int) -> SeasonGoal | None: ...
+
+    def save_goal(self, goal: SeasonGoal) -> None: ...
 
     def delete_participant(self, participant_id: int) -> None: ...
 
@@ -54,6 +61,8 @@ class SkiRepository(Protocol):
         distance_tenths: int,
         place: str | None,
         created_at: datetime,
+        style: str,
+        conditions: str,
     ) -> Entry: ...
 
     def update_entry(
@@ -62,6 +71,8 @@ class SkiRepository(Protocol):
         performed_at: datetime,
         distance_tenths: int,
         place: str | None,
+        style: str,
+        conditions: str,
     ) -> Entry: ...
 
     def delete_entry(self, entry_id: int) -> None: ...

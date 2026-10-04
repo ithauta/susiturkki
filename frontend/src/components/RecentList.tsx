@@ -31,7 +31,17 @@ function RecentRow({ entry }: { entry: RecentSki }) {
     <li className="mt-1 flex justify-between gap-3 text-sm">
       <span>{finnishDate(entry.performed_on)}</span>
       <span>{finnishKilometers(entry.kilometers)} {text("entry.unit")}</span>
-      <span className="truncate">{entry.place ?? ""}</span>
+      <RecentChoices entry={entry} />
     </li>
+  )
+}
+
+function RecentChoices({ entry }: { entry: RecentSki }) {
+  return (
+    <>
+      <span className="truncate">{entry.place ?? ""}</span>
+      <span>{text(`style.${entry.style}`)}</span>
+      <span>{text(`conditions.${entry.conditions}`)}</span>
+    </>
   )
 }

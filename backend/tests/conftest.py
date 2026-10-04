@@ -49,7 +49,7 @@ def add_member(app: AppFixture, group_name: str = "Laturyhmä", member_name: str
     assert group.status_code == 201
     member = app.client.post(
         f"/api/admin/groups/{group.json()['id']}/participants",
-        json={"name": member_name},
+        json={"given_name": member_name, "family_name": ""},
     )
     assert member.status_code == 201
     return {"group": group.json(), "participant": member.json()}

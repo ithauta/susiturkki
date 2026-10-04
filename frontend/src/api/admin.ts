@@ -31,8 +31,8 @@ export function readPersons(): Promise<Person[]> {
   return readJson("/api/admin/persons")
 }
 
-export async function createMember(groupId: number, name: string): Promise<Participant> {
-  const response = await sendJson(groupPath(groupId, "/participants"), "POST", { name })
+export async function createMember(groupId: number, givenName: string, familyName: string): Promise<Participant> {
+  const response = await sendJson(groupPath(groupId, "/participants"), "POST", { given_name: givenName, family_name: familyName })
   return response.json() as Promise<Participant>
 }
 
@@ -41,8 +41,8 @@ export async function attachMember(groupId: number, personId: number): Promise<P
   return response.json() as Promise<Participant>
 }
 
-export function renameMember(participantId: number, name: string): Promise<Response> {
-  return sendJson(`/api/admin/participants/${participantId}`, "PATCH", { name })
+export function renameMember(participantId: number, givenName: string, familyName: string): Promise<Response> {
+  return sendJson(`/api/admin/participants/${participantId}`, "PATCH", { given_name: givenName, family_name: familyName })
 }
 
 export function deleteMember(participantId: number): Promise<Response> {

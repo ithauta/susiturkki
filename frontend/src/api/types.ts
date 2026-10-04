@@ -16,6 +16,8 @@ export type Entry = {
   kilometers: string
   place: string | null
   created_at: string
+  style: string
+  conditions: string
   can_edit?: boolean
 }
 
@@ -23,6 +25,22 @@ export type EntryBody = {
   performed_at: string
   distance_km: string
   place: string | null
+  style: string
+  conditions: string
+}
+
+export type ProfileBody = {
+  birth_year: number | null
+  distance_km: string | null
+  target_on: string | null
+}
+
+export type Profile = {
+  birth_year: number | null
+  season: number
+  kilometers: string | null
+  target_on: string | null
+  kilometers_editable: boolean
 }
 
 export type MemberKilometers = {
@@ -40,6 +58,8 @@ export type RecentSki = {
   performed_on: string
   kilometers: string
   place: string | null
+  style: string
+  conditions: string
 }
 
 export type MemberRecent = {
@@ -59,6 +79,8 @@ export type SeasonStats = {
 
 export type Person = {
   id: number
+  given_name: string
+  family_name: string
   name: string
   token: string
 }
@@ -67,6 +89,8 @@ export type Participant = {
   id: number
   group_id: number
   person_id: number
+  given_name: string
+  family_name: string
   name: string
   token: string
 }

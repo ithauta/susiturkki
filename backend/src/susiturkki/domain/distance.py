@@ -14,5 +14,11 @@ def parse_distance_tenths(kilometers: Decimal) -> int:
     return int(one_decimal * 10)
 
 
+def optional_tenths(kilometers: Decimal | None) -> int | None:
+    if kilometers is None:
+        return None
+    return parse_distance_tenths(kilometers)
+
+
 def kilometers_from_tenths(tenths: int) -> Decimal:
     return (Decimal(tenths) / Decimal(10)).quantize(ONE_DECIMAL)

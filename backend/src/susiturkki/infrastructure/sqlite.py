@@ -4,11 +4,14 @@ from datetime import datetime
 
 from susiturkki.domain.errors import RuleError
 from susiturkki.domain.models import Entry, Group, Participant, Person
-from susiturkki.infrastructure.migrate import upgrade_if_legacy
+from susiturkki.domain.goal import SeasonGoal
+from susiturkki.infrastructure.migrate import upgrade_if_legacy, upgrade_shape
 from susiturkki.infrastructure.sqlite_rows import (
     dump_time,
     entry_from,
     entry_params,
+    goal_from,
+    goal_params,
     group_from,
     new_entry,
     participant_from,
@@ -22,7 +25,9 @@ CREATE TABLE IF NOT EXISTS groups (
 );
 CREATE TABLE IF NOT EXISTS persons (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
+    given_name TEXT NOT NULL,
+    family_name TEXT NOT NULL,
+    birth_year INTEGER,
     token TEXT NOT NULL UNIQUE
 );
 CREATE TABLE IF NOT EXISTS participants (
@@ -37,7 +42,16 @@ CREATE TABLE IF NOT EXISTS entries (
     performed_at TEXT NOT NULL,
     distance_tenths INTEGER NOT NULL,
     place TEXT,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    style TEXT NOT NULL DEFAULT 'free',
+    conditions TEXT NOT NULL DEFAULT 'normal'
+);
+CREATE TABLE IF NOT EXISTS season_goals (
+    person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    season_start_year INTEGER NOT NULL,
+    distance_tenths INTEGER,
+    target_on TEXT,
+    PRIMARY KEY (person_id, season_start_year)
 );
 CREATE INDEX IF NOT EXISTS entries_person ON entries(person_id);
 """
@@ -53,11 +67,11 @@ SELECT COUNT(*) AS total FROM entries e
 JOIN participants m ON m.person_id = e.person_id
 WHERE m.group_id = ?
 """
-MEMBER_COLUMNS = "m.id, m.group_id, s.name, s.token, m.person_id"
+MEMBER_COLUMNS = "m.id, m.group_id, s.given_name, s.family_name, s.token, m.person_id"
 SELECT_PARTICIPANTS = f"""
 SELECT {MEMBER_COLUMNS} FROM participants m
 JOIN persons s ON s.id = m.person_id
-WHERE m.group_id = ? ORDER BY s.name, m.id
+WHERE m.group_id = ? ORDER BY s.family_name, s.given_name, m.id
 """
 SELECT_PARTICIPANT = f"""
 SELECT {MEMBER_COLUMNS} FROM participants m
@@ -68,33 +82,42 @@ SELECT {MEMBER_COLUMNS} FROM participants m
 JOIN persons s ON s.id = m.person_id WHERE m.person_id = ? ORDER BY m.id
 """
 COUNT_MEMBERSHIPS = "SELECT COUNT(*) AS total FROM participants WHERE person_id = ?"
-SELECT_PERSONS = "SELECT id, name, token FROM persons ORDER BY name, id"
-SELECT_PERSON = "SELECT id, name, token FROM persons WHERE id = ?"
-SELECT_PERSON_TOKEN = "SELECT id, name, token FROM persons WHERE token = ?"
-INSERT_PERSON = "INSERT INTO persons (name, token) VALUES (?, ?)"
+PERSON_COLUMNS = "id, given_name, family_name, birth_year, token"
+SELECT_PERSONS = f"SELECT {PERSON_COLUMNS} FROM persons ORDER BY family_name, given_name, id"
+SELECT_PERSON = f"SELECT {PERSON_COLUMNS} FROM persons WHERE id = ?"
+SELECT_PERSON_TOKEN = f"SELECT {PERSON_COLUMNS} FROM persons WHERE token = ?"
+INSERT_PERSON = "INSERT INTO persons (given_name, family_name, token) VALUES (?, ?, ?)"
 INSERT_MEMBERSHIP = "INSERT INTO participants (group_id, person_id) VALUES (?, ?)"
-UPDATE_PERSON = "UPDATE persons SET name = ? WHERE id = ?"
+UPDATE_PERSON = "UPDATE persons SET given_name = ?, family_name = ? WHERE id = ?"
+UPDATE_BIRTH = "UPDATE persons SET birth_year = ? WHERE id = ?"
+SELECT_GOAL = """
+SELECT person_id, season_start_year, distance_tenths, target_on
+FROM season_goals WHERE person_id = ? AND season_start_year = ?
+"""
+UPSERT_GOAL = """
+INSERT INTO season_goals (person_id, season_start_year, distance_tenths, target_on)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (person_id, season_start_year) DO UPDATE SET
+distance_tenths = excluded.distance_tenths, target_on = excluded.target_on
+"""
 UPDATE_TOKEN = "UPDATE persons SET token = ? WHERE id = ?"
 DELETE_MEMBERSHIP = "DELETE FROM participants WHERE id = ?"
 DELETE_PERSON = "DELETE FROM persons WHERE id = ?"
 INSERT_ENTRY = """
-INSERT INTO entries (person_id, performed_at, distance_tenths, place, created_at)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO entries (person_id, performed_at, distance_tenths, place, created_at, style, conditions)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 """
 UPDATE_ENTRY = """
-UPDATE entries SET performed_at = ?, distance_tenths = ?, place = ? WHERE id = ?
+UPDATE entries SET performed_at = ?, distance_tenths = ?, place = ?, style = ?, conditions = ? WHERE id = ?
 """
 DELETE_ENTRY = "DELETE FROM entries WHERE id = ?"
-SELECT_ENTRY = """
-SELECT id, person_id AS participant_id, performed_at, distance_tenths, place, created_at
-FROM entries WHERE id = ?
-"""
-SELECT_PERSON_ENTRIES = """
-SELECT id, person_id AS participant_id, performed_at, distance_tenths, place, created_at
-FROM entries WHERE person_id = ? ORDER BY performed_at DESC, id DESC
+ENTRY_COLUMNS = "id, person_id AS participant_id, performed_at, distance_tenths, place, created_at, style, conditions"
+SELECT_ENTRY = f"SELECT {ENTRY_COLUMNS} FROM entries WHERE id = ?"
+SELECT_PERSON_ENTRIES = f"""
+SELECT {ENTRY_COLUMNS} FROM entries WHERE person_id = ? ORDER BY performed_at DESC, id DESC
 """
 SELECT_GROUP_ENTRIES = """
-SELECT e.id, m.id AS participant_id, e.performed_at, e.distance_tenths, e.place, e.created_at
+SELECT e.id, m.id AS participant_id, e.performed_at, e.distance_tenths, e.place, e.created_at, e.style, e.conditions
 FROM entries e JOIN participants m ON m.person_id = e.person_id
 WHERE m.group_id = ? ORDER BY e.performed_at DESC, e.id DESC
 """
@@ -132,8 +155,8 @@ class SqliteSkiRepository:
     def count_entries(self, group_id: int) -> int:
         return self._count(COUNT_ENTRIES, (group_id,))
 
-    def add_participant(self, group_id: int, name: str, token: str) -> Participant:
-        person_id = self._insert(INSERT_PERSON, (name, token))
+    def add_participant(self, group_id: int, given_name: str, family_name: str, token: str) -> Participant:
+        person_id = self._insert(INSERT_PERSON, (given_name, family_name, token))
         return self._membership(group_id, person_id)
 
     def add_membership(self, group_id: int, person_id: int) -> Participant:
@@ -150,10 +173,19 @@ class SqliteSkiRepository:
         rows = self._rows(SELECT_MEMBERSHIPS, (person_id,))
         return [participant_from(row) for row in rows]
 
-    def rename_participant(self, participant_id: int, name: str) -> Participant:
+    def rename_participant(self, participant_id: int, given_name: str, family_name: str) -> Participant:
         person_id = self._participant(participant_id).person_id
-        self._ensure_changed(UPDATE_PERSON, (name, person_id), "participant_not_found")
+        self._ensure_changed(UPDATE_PERSON, (given_name, family_name, person_id), "participant_not_found")
         return self._participant(participant_id)
+
+    def set_birth_year(self, person_id: int, year: int | None) -> None:
+        self._ensure_changed(UPDATE_BIRTH, (year, person_id), "participant_not_found")
+
+    def get_goal(self, person_id: int, season: int) -> SeasonGoal | None:
+        return _first(self._rows(SELECT_GOAL, (person_id, season)), goal_from)
+
+    def save_goal(self, goal: SeasonGoal) -> None:
+        self._change(UPSERT_GOAL, goal_params(goal))
 
     def delete_participant(self, participant_id: int) -> None:
         person_id = self._participant(participant_id).person_id
@@ -172,13 +204,13 @@ class SqliteSkiRepository:
         self._ensure_changed(UPDATE_TOKEN, (token, person_id), "participant_not_found")
         return self._participant(participant_id)
 
-    def add_entry(self, person_id: int, performed_at: datetime, distance_tenths: int, place, created_at) -> Entry:
-        params = entry_params(person_id, performed_at, distance_tenths, place, created_at)
+    def add_entry(self, person_id: int, performed_at: datetime, distance_tenths: int, place, created_at, style="free", conditions="normal") -> Entry:
+        params = entry_params(person_id, performed_at, distance_tenths, place, created_at, style, conditions)
         row_id = self._insert(INSERT_ENTRY, params)
-        return new_entry(row_id, person_id, performed_at, distance_tenths, place, created_at)
+        return new_entry(row_id, person_id, performed_at, distance_tenths, place, created_at, style, conditions)
 
-    def update_entry(self, entry_id: int, performed_at: datetime, distance_tenths: int, place) -> Entry:
-        params = (dump_time(performed_at), distance_tenths, place, entry_id)
+    def update_entry(self, entry_id: int, performed_at: datetime, distance_tenths: int, place, style="free", conditions="normal") -> Entry:
+        params = (dump_time(performed_at), distance_tenths, place, style, conditions, entry_id)
         self._ensure_changed(UPDATE_ENTRY, params, "entry_not_found")
         return self._entry(entry_id)
 
@@ -198,6 +230,7 @@ class SqliteSkiRepository:
     def _prepare(self) -> None:
         self._connection.execute("PRAGMA foreign_keys = ON")
         upgrade_if_legacy(self._connection)
+        upgrade_shape(self._connection)
         self._connection.executescript(SCHEMA)
 
     def _membership(self, group_id: int, person_id: int) -> Participant:

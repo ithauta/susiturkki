@@ -34,7 +34,7 @@ function EditOwn({ token, entry, places, onChanged, onClose }: OwnProps & { onCl
 }
 
 function draft(entry: Entry) {
-  return { performed_at: inputFromIso(entry.performed_at), distance_km: entry.kilometers, place: entry.place ?? "" }
+  return { performed_at: inputFromIso(entry.performed_at), distance_km: entry.kilometers, place: entry.place ?? "", style: entry.style, conditions: entry.conditions }
 }
 
 async function remove(token: string, entryId: number, onChanged: () => void) {

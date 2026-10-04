@@ -1,9 +1,17 @@
 import { readJson, sendJson } from "./client"
 import { participantPath, statsQuery } from "./paths"
-import type { Entry, EntryBody, Home, SeasonStats } from "./types"
+import type { Entry, EntryBody, Home, Profile, ProfileBody, SeasonStats } from "./types"
 
 export function readHome(token: string): Promise<Home> {
   return readJson(participantPath(token))
+}
+
+export function readProfile(token: string): Promise<Profile> {
+  return readJson(participantPath(token, "/profile"))
+}
+
+export function saveProfile(token: string, body: ProfileBody): Promise<Response> {
+  return sendJson(participantPath(token, "/profile"), "PATCH", body)
 }
 
 export function readEntries(token: string): Promise<Entry[]> {

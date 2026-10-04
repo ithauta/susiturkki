@@ -1,4 +1,6 @@
-"""Vanha tietokanta, jossa jäsenyydellä oli oma nimi ja linkki, siirretään henkilöiksi."""
+"""Vanhat tietokannat siirretään henkilöiksi ja nykyiseen sarakemalliin."""
+
+from susiturkki.domain.name import split_name
 
 REWRITE = """
 CREATE TABLE persons (
@@ -33,6 +35,12 @@ ALTER TABLE entries_next RENAME TO entries;
 """
 
 
+def upgrade_shape(connection) -> None:
+    _split_person_names(connection)
+    _add_entry_choices(connection)
+    connection.commit()
+
+
 def upgrade_if_legacy(connection) -> None:
     if _legacy_participants(connection):
         _rewrite(connection)
@@ -48,6 +56,39 @@ def _rewrite(connection) -> None:
     connection.execute("PRAGMA foreign_keys = OFF")
     connection.executescript(REWRITE)
     connection.execute("PRAGMA foreign_keys = ON")
+
+
+def _split_person_names(connection) -> None:
+    if not _has_column(connection, "persons", "name"):
+        return
+    _add_name_columns(connection)
+    _copy_names(connection)
+    connection.execute("ALTER TABLE persons DROP COLUMN name")
+
+
+def _add_name_columns(connection) -> None:
+    if _has_column(connection, "persons", "given_name"):
+        return
+    connection.execute("ALTER TABLE persons ADD COLUMN given_name TEXT NOT NULL DEFAULT ''")
+    connection.execute("ALTER TABLE persons ADD COLUMN family_name TEXT NOT NULL DEFAULT ''")
+    connection.execute("ALTER TABLE persons ADD COLUMN birth_year INTEGER")
+
+
+def _copy_names(connection) -> None:
+    for row in connection.execute("SELECT id, name FROM persons"):
+        _store_split(connection, row)
+
+
+def _store_split(connection, row) -> None:
+    given, family = split_name(row["name"])
+    connection.execute("UPDATE persons SET given_name = ?, family_name = ? WHERE id = ?", (given, family, row["id"]))
+
+
+def _add_entry_choices(connection) -> None:
+    if not _has_table(connection, "entries") or _has_column(connection, "entries", "style"):
+        return
+    connection.execute("ALTER TABLE entries ADD COLUMN style TEXT NOT NULL DEFAULT 'free'")
+    connection.execute("ALTER TABLE entries ADD COLUMN conditions TEXT NOT NULL DEFAULT 'normal'")
 
 
 def _has_table(connection, name: str) -> bool:

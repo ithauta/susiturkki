@@ -1,4 +1,5 @@
 from susiturkki.application.entries import OwnEntry
+from susiturkki.application.goals import Profile
 from susiturkki.application.groups import GroupDetails
 from susiturkki.application.home import ParticipantHome
 from susiturkki.domain.distance import kilometers_from_tenths
@@ -20,17 +21,16 @@ def group_json(details: GroupDetails) -> dict:
 
 
 def participant_json(person: Participant) -> dict:
-    return {
+    return _person_names(person) | {
         "id": person.id,
         "group_id": person.group_id,
         "person_id": person.person_id,
-        "name": person.name,
         "token": person.token,
     }
 
 
 def person_json(person: Person) -> dict:
-    return {"id": person.id, "name": person.name, "token": person.token}
+    return _person_names(person) | {"id": person.id, "token": person.token}
 
 
 def home_json(home: ParticipantHome) -> dict:
@@ -38,13 +38,16 @@ def home_json(home: ParticipantHome) -> dict:
 
 
 def entry_json(entry: Entry) -> dict:
+    return _entry_core(entry) | _entry_extra(entry)
+
+
+def profile_json(profile: Profile) -> dict:
     return {
-        "id": entry.id,
-        "participant_id": entry.participant_id,
-        "performed_at": in_helsinki(entry.performed_at).isoformat(),
-        "kilometers": str(kilometers_from_tenths(entry.distance_tenths)),
-        "place": entry.place,
-        "created_at": in_helsinki(entry.created_at).isoformat(),
+        "birth_year": profile.person.birth_year,
+        "season": profile.season,
+        "kilometers": _goal_kilometers(profile.goal),
+        "target_on": _goal_day(profile.goal),
+        "kilometers_editable": profile.kilometers_editable,
     }
 
 
@@ -107,5 +110,45 @@ def _member_recent_json(member: MemberRecent) -> dict:
     }
 
 
+def _person_names(person: Person | Participant) -> dict:
+    return {"given_name": person.given_name, "family_name": person.family_name, "name": person.name}
+
+
+def _entry_core(entry: Entry) -> dict:
+    return {
+        "id": entry.id,
+        "participant_id": entry.participant_id,
+        "performed_at": in_helsinki(entry.performed_at).isoformat(),
+        "kilometers": str(kilometers_from_tenths(entry.distance_tenths)),
+    }
+
+
+def _entry_extra(entry: Entry) -> dict:
+    return {
+        "place": entry.place,
+        "created_at": in_helsinki(entry.created_at).isoformat(),
+        "style": entry.style,
+        "conditions": entry.conditions,
+    }
+
+
+def _goal_kilometers(goal) -> str | None:
+    if goal is None or goal.distance_tenths is None:
+        return None
+    return str(kilometers_from_tenths(goal.distance_tenths))
+
+
+def _goal_day(goal) -> str | None:
+    if goal is None or goal.target_on is None:
+        return None
+    return goal.target_on.isoformat()
+
+
 def _recent_ski_json(ski: RecentSki) -> dict:
-    return {"performed_on": ski.performed_on.isoformat(), "kilometers": str(ski.kilometers), "place": ski.place}
+    return {
+        "performed_on": ski.performed_on.isoformat(),
+        "kilometers": str(ski.kilometers),
+        "place": ski.place,
+        "style": ski.style,
+        "conditions": ski.conditions,
+    }

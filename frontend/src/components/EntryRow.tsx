@@ -19,6 +19,16 @@ function EntryFacts({ entry }: { entry: Entry }) {
       <span>{finnishMoment(entry.performed_at)}</span>
       <span>{finnishKilometers(entry.kilometers)} {text("entry.unit")}</span>
       <span>{entry.place ?? ""}</span>
+      <EntryChoices entry={entry} />
     </div>
+  )
+}
+
+function EntryChoices({ entry }: { entry: Entry }) {
+  return (
+    <>
+      <span>{text(`style.${entry.style}`)}</span>
+      <span>{text(`conditions.${entry.conditions}`)}</span>
+    </>
   )
 }

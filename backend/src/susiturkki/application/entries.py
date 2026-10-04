@@ -9,6 +9,8 @@ from susiturkki.application.access import (
     require_person,
 )
 from susiturkki.application.ports import Clock, SkiRepository
+from susiturkki.application.goals import follow_target
+from susiturkki.domain.choice import parse_conditions, parse_style
 from susiturkki.domain.distance import parse_distance_tenths
 from susiturkki.domain.models import Entry
 from susiturkki.domain.place import normalize_place
@@ -39,27 +41,31 @@ def list_group_entries(repository: SkiRepository, group_id: int) -> list[Entry]:
     return repository.list_entries_for_group(group_id)
 
 
-def add_participant_entry(repository, clock, token: str, performed_at, distance_km: Decimal, place) -> Entry:
+def add_participant_entry(repository, clock, token: str, performed_at, distance_km: Decimal, place, style, conditions) -> Entry:
     person = require_person(repository, token)
-    return _save_new(repository, clock, person.id, performed_at, distance_km, place, Actor.PARTICIPANT)
+    entry = _save_new(repository, clock, person.id, performed_at, distance_km, place, Actor.PARTICIPANT, style, conditions)
+    follow_target(repository, person.id, entry.performed_at, clock.now())
+    return entry
 
 
-def add_admin_entry(repository, clock, group_id: int, participant_id: int, performed_at, distance_km, place) -> Entry:
+def add_admin_entry(repository, clock, group_id: int, participant_id: int, performed_at, distance_km, place, style, conditions) -> Entry:
     participant = require_participant_in_group(repository, group_id, participant_id)
-    return _save_new(repository, clock, participant.person_id, performed_at, distance_km, place, Actor.ADMIN)
+    return _save_new(repository, clock, participant.person_id, performed_at, distance_km, place, Actor.ADMIN, style, conditions)
 
 
-def update_participant_entry(repository, clock, token: str, entry_id: int, performed_at, distance_km, place) -> Entry:
+def update_participant_entry(repository, clock, token: str, entry_id: int, performed_at, distance_km, place, style, conditions) -> Entry:
     person = require_person(repository, token)
     entry = require_own_entry(repository, person.id, entry_id)
     validate_participant_update(entry.created_at, performed_at, clock.now())
-    return _save_update(repository, entry.id, performed_at, distance_km, place)
+    saved = _save_update(repository, entry.id, performed_at, distance_km, place, style, conditions)
+    follow_target(repository, person.id, saved.performed_at, clock.now())
+    return saved
 
 
-def update_admin_entry(repository, clock, entry_id: int, performed_at, distance_km, place) -> Entry:
+def update_admin_entry(repository, clock, entry_id: int, performed_at, distance_km, place, style, conditions) -> Entry:
     entry = require_entry(repository, entry_id)
     ensure_admin_activity(performed_at, clock.now())
-    return _save_update(repository, entry.id, performed_at, distance_km, place)
+    return _save_update(repository, entry.id, performed_at, distance_km, place, style, conditions)
 
 
 def delete_participant_entry(repository: SkiRepository, clock: Clock, token: str, entry_id: int) -> None:
@@ -80,14 +86,15 @@ def _own_views(repository: SkiRepository, clock: Clock, person_id: int) -> list[
     return [OwnEntry(entry, within_edit_window(entry.created_at, now)) for entry in entries]
 
 
-def _save_new(repository, clock, person_id: int, performed_at, distance_km, place, actor: Actor) -> Entry:
+def _save_new(repository, clock, person_id: int, performed_at, distance_km, place, actor: Actor, style, conditions) -> Entry:
     now = clock.now()
     validate_new_entry(actor, performed_at, now)
-    return repository.add_entry(person_id, in_helsinki(performed_at), _tenths(distance_km), _place(place), now)
+    return repository.add_entry(person_id, in_helsinki(performed_at), _tenths(distance_km), _place(place), now, parse_style(style), parse_conditions(conditions))
 
 
-def _save_update(repository, entry_id: int, performed_at, distance_km, place) -> Entry:
-    return repository.update_entry(entry_id, in_helsinki(performed_at), _tenths(distance_km), _place(place))
+def _save_update(repository, entry_id: int, performed_at, distance_km, place, style, conditions) -> Entry:
+    performed = in_helsinki(performed_at)
+    return repository.update_entry(entry_id, performed, _tenths(distance_km), _place(place), parse_style(style), parse_conditions(conditions))
 
 
 def _tenths(distance_km: Decimal) -> int:

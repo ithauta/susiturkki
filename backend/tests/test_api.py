@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
+from susiturkki.domain.goal import SeasonGoal
 from tests.conftest import add_member, at, login, make_app
 
 
@@ -44,7 +45,7 @@ def test_stats_include_only_the_token_group() -> None:
 def test_places_default_to_the_participants_latest() -> None:
     app = _open(at(2025, 10, 15))
     group = add_member(app)
-    other = app.client.post(f"/api/admin/groups/{group['group']['id']}/participants", json={"name": "Leevi"})
+    other = app.client.post(f"/api/admin/groups/{group['group']['id']}/participants", json={"given_name": "Leevi", "family_name": ""})
     _log(app, other.json()["token"], "2025-10-10T12:00:00", "2.0", "Kuusamo")
     _log(app, group["participant"]["token"], "2025-10-12T12:00:00", "3.0", "Sievi")
     _log(app, group["participant"]["token"], "2025-10-14T12:00:00", "1.0", None)
@@ -240,6 +241,67 @@ def _join(app, group_id: int, person_id: int) -> dict:
 def _total(app, group_id: int) -> str:
     stats = app.client.get(f"/api/admin/groups/{group_id}/stats")
     return stats.json()["season_totals"][0]["kilometers"]
+
+
+def test_entry_defaults_style_and_conditions() -> None:
+    app = _open(at(2025, 10, 15))
+    token = add_member(app)["participant"]["token"]
+    created = _log(app, token, "2025-10-14T12:00:00", "10.1", "Sievi")
+    assert created["style"] == "free"
+    assert created["conditions"] == "normal"
+
+
+def test_kilometers_can_be_set_until_the_end_of_december() -> None:
+    app = _open(at(2025, 12, 31))
+    member = add_member(app)
+    saved = _save_profile(app, member, "80.0", "2026-03-01")
+    assert saved.status_code == 200
+    assert saved.json()["kilometers"] == "80.0"
+    assert saved.json()["kilometers_editable"] is True
+
+
+def test_kilometers_are_locked_after_december() -> None:
+    app = _open(at(2026, 1, 10))
+    member = add_member(app)
+    _goal(app, member, date(2026, 3, 1))
+    saved = _save_profile(app, member, "200.0", "2026-03-01")
+    assert saved.status_code == 400
+    assert saved.json()["code"] == "target_km_closed"
+
+
+def test_goal_carries_into_the_next_season() -> None:
+    app = _open(at(2026, 5, 2))
+    member = add_member(app)
+    _goal(app, member, date(2026, 3, 15))
+    profile = _profile(app, member)
+    assert profile["season"] == 2026
+    assert profile["target_on"] == "2027-03-15"
+    assert profile["kilometers"] == "100.0"
+    assert profile["kilometers_editable"] is False
+
+
+def test_a_ski_after_the_target_moves_the_date() -> None:
+    app = _open(at(2026, 1, 20))
+    member = add_member(app)
+    _goal(app, member, date(2026, 1, 15))
+    _log(app, member["participant"]["token"], "2026-01-20T12:00:00", "5.0", None)
+    assert _profile(app, member)["target_on"] == "2026-01-20"
+
+
+def _save_profile(app, member, kilometers: str | None, target_on: str | None):
+    token = member["participant"]["token"]
+    body = {"birth_year": 1990, "distance_km": kilometers, "target_on": target_on}
+    return app.client.patch(f"/api/p/{token}/profile", json=body)
+
+
+def _profile(app, member) -> dict:
+    token = member["participant"]["token"]
+    return app.client.get(f"/api/p/{token}/profile").json()
+
+
+def _goal(app, member, day: date) -> None:
+    person_id = member["participant"]["person_id"]
+    app.repository.save_goal(SeasonGoal(person_id, 2025, 1000, day))
 
 
 def _aged_entry(app, participant_id: int) -> int:

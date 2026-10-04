@@ -7,6 +7,7 @@ import { Shell } from "../components/Shell"
 import { StatsBoard } from "../components/StatsBoard"
 import { Status } from "../components/Status"
 import { helsinkiInput } from "../format/time"
+import { DetailsPane } from "./DetailsPane"
 import { OwnEntry } from "./OwnEntry"
 import { useAsync } from "../hooks/useAsync"
 import type { LoadState } from "../hooks/useAsync"
@@ -15,7 +16,7 @@ import { text } from "../i18n/text"
 import logo from "../assets/logo.jpg"
 
 type FormKey = (update: (value: number) => number) => void
-type Pane = "log" | "standings"
+type Pane = "log" | "standings" | "details"
 type Desk = {
   pane: Pane
   setPane: (pane: Pane) => void
@@ -142,6 +143,7 @@ function ViewTabs({ pane, onPane }: { pane: Pane; onPane: (pane: Pane) => void }
     <div className="flex gap-2">
       <PaneButton label={text("view.log")} active={pane === "log"} onClick={() => onPane("log")} />
       <PaneButton label={text("view.standings")} active={pane === "standings"} onClick={() => onPane("standings")} />
+      <PaneButton label={text("view.details")} active={pane === "details"} onClick={() => onPane("details")} />
     </div>
   )
 }
@@ -152,6 +154,7 @@ function PaneButton({ label, active, onClick }: { label: string; active: boolean
 
 function Shown({ pane, desk, log }: { pane: Pane; desk: Desk; log: LogProps }) {
   if (pane === "log") return <LogPane log={log} />
+  if (pane === "details") return <DetailsPane token={log.token} />
   return <Standings desk={desk} />
 }
 
@@ -209,7 +212,7 @@ function Logging({ token, home, onSaved }: { token: string; home: Home; onSaved:
 }
 
 function draft(home: Home) {
-  return { performed_at: helsinkiInput(), distance_km: "", place: home.default_place ?? "" }
+  return { performed_at: helsinkiInput(), distance_km: "", place: home.default_place ?? "", style: "free", conditions: "normal" }
 }
 
 async function saveNew(token: string, body: EntryBody, onSaved: () => void) {

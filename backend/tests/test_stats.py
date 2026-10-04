@@ -30,7 +30,7 @@ def test_only_five_newest_entries_are_kept() -> None:
 
 
 def _people() -> list[Participant]:
-    return [Participant(1, 1, "Aino", "a"), Participant(2, 1, "Leevi", "b")]
+    return [Participant(1, 1, "Aino", "", "a"), Participant(2, 1, "Leevi", "", "b")]
 
 
 def _entries() -> list[Entry]:

@@ -55,7 +55,7 @@ function EditAdmin({ entry, places, reload, onClose }: { entry: Entry; places: s
 }
 
 function draft(entry: Entry) {
-  return { performed_at: inputFromIso(entry.performed_at), distance_km: entry.kilometers, place: entry.place ?? "" }
+  return { performed_at: inputFromIso(entry.performed_at), distance_km: entry.kilometers, place: entry.place ?? "", style: entry.style, conditions: entry.conditions }
 }
 
 async function remove(entryId: number, reload: () => void) {

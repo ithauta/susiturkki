@@ -29,6 +29,8 @@ class RecentSki:
     performed_on: date
     kilometers: Decimal
     place: str | None
+    style: str
+    conditions: str
 
 
 @dataclass(frozen=True)
@@ -128,7 +130,7 @@ def _tenths_by_participant(entries) -> dict[int, int]:
 
 def _recent_ski(entry: Entry) -> RecentSki:
     kilometers = kilometers_from_tenths(entry.distance_tenths)
-    return RecentSki(local_date(entry.performed_at), kilometers, entry.place)
+    return RecentSki(local_date(entry.performed_at), kilometers, entry.place, entry.style, entry.conditions)
 
 
 def _unique_places(ordered: list[Entry]) -> tuple[str, ...]:
